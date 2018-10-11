@@ -43,10 +43,17 @@ using namespace std;
 namespace ORB_SLAM2
 {
 
+#ifdef FUNC_MAP_SAVE_LOAD
+Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor, bool bReuseMap):
+    mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
+    mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys), mpViewer(NULL),
+    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0)
+#else
 Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor):
     mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
     mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys), mpViewer(NULL),
     mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0)
+#endif
 {
     // Load camera parameters from settings file
 
@@ -145,6 +152,10 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
         else
             mDepthMapFactor = 1.0f/mDepthMapFactor;
     }
+#ifdef FUNC_MAP_SAVE_LOAD
+    if (bReuseMap)
+        mState = LOST;
+#endif
 
 }
 
@@ -497,7 +508,8 @@ void Tracking::Track()
     else
     {
         // This can happen if tracking is lost
-        mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
+        if (!mlRelativeFramePoses.empty())
+            mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
         mlpReferences.push_back(mlpReferences.back());
         mlFrameTimes.push_back(mlFrameTimes.back());
         mlbLost.push_back(mState==LOST);
@@ -883,6 +895,11 @@ bool Tracking::TrackWithMotionModel()
     else
         th=7;
     int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR);
+    // std::cout << std::setprecision(20) << mCurrentFrame.mTimeStamp << "---nmatches: " << nmatches << std::endl;
+    std::ofstream write;
+    write.open("matches.txt", std::ios::app);
+    write << to_string(mCurrentFrame.mTimeStamp) << "," << nmatches << "\n";
+    write.close();
 
     // If few matches, uses a wider window search
     if(nmatches<20)
@@ -1137,6 +1154,9 @@ void Tracking::CreateNewKeyFrame()
     mpLocalMapper->SetNotStop(false);
 
     mnLastKeyFrameId = mCurrentFrame.mnId;
+    std::ofstream write;
+    write.open("keyFrame.txt", std::ios::app);
+    write << to_string(mCurrentFrame.mTimeStamp) << ", " << mnLastKeyFrameId << "\n";
     mpLastKeyFrame = pKF;
 }
 
@@ -1225,8 +1245,32 @@ void Tracking::UpdateLocalPoints()
             }
         }
     }
+    std::string timeStampStr = to_string(mCurrentFrame.mTimeStamp) + ".txt";
+    // SaveLocalMap(timeStampStr);
+    std::ofstream write;
+    write.open("localMapPointSize.txt", std::ios::app);
+    write << to_string(mCurrentFrame.mTimeStamp) << "," << mvpLocalMapPoints.size() << "\n";
+    write.close();
+    // std::cout << "mvpLocalMapPoints: " << mvpLocalMapPoints.size() << std::endl;
 }
 
+void Tracking::SaveLocalMap(const string &filename)
+{
+    std::ofstream out(filename, std::ios_base::binary);
+    if (!out)
+    {
+        cerr << "Cannot Write to Local Mapfile: " << filename << std::endl;
+        exit(-1);
+    }
+    cout << "Saving Local Mapfile: " << filename << std::flush;
+    boost::archive::binary_oarchive oa(out, boost::archive::no_header);
+    for(int i=0; i<mvpLocalMapPoints.size(); i++)
+    {
+        out << mvpLocalMapPoints[i]->GetWorldPos();
+    }
+    cout << " ...done" << std::endl;
+    out.close();
+}
 
 void Tracking::UpdateLocalKeyFrames()
 {
@@ -1249,6 +1293,7 @@ void Tracking::UpdateLocalKeyFrames()
             }
         }
     }
+    // std::cout << "keyframeCounter: " << keyframeCounter.size() << std::endl;
 
     if(keyframeCounter.empty())
         return;
@@ -1276,6 +1321,7 @@ void Tracking::UpdateLocalKeyFrames()
         mvpLocalKeyFrames.push_back(it->first);
         pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
     }
+    std::cout << "mvpLocalKeyFrames: " << mvpLocalKeyFrames.size() << std::endl;
 
 
     // Include also some not-already-included keyframes that are neighbors to already-included keyframes
@@ -1509,7 +1555,9 @@ void Tracking::Reset()
     {
         mpViewer->RequestStop();
         while(!mpViewer->isStopped())
-            usleep(3000);
+        {
+            std::this_thread::sleep_for(std::chrono::microseconds(3000));
+        }
     }
 
     // Reset Local Mapping

@@ -91,7 +91,7 @@ void LocalMapping::Run()
             // Safe area to stop
             while(isStopped() && !CheckFinish())
             {
-                usleep(3000);
+                std::this_thread::sleep_for(std::chrono::microseconds(3000));
             }
             if(CheckFinish())
                 break;
@@ -105,7 +105,7 @@ void LocalMapping::Run()
         if(CheckFinish())
             break;
 
-        usleep(3000);
+        std::this_thread::sleep_for(std::chrono::microseconds(3000));
     }
 
     SetFinish();
@@ -449,6 +449,11 @@ void LocalMapping::CreateNewMapPoints()
             nnew++;
         }
     }
+
+    std::ofstream write;
+    write.open("globalMapPoint.txt", std::ios::app);
+    write << to_string(mpCurrentKeyFrame->mTimeStamp) << "," << mpMap->MapPointsInMap() << "\n";
+    write.close();
 }
 
 void LocalMapping::SearchInNeighbors()
@@ -716,7 +721,7 @@ void LocalMapping::RequestReset()
             if(!mbResetRequested)
                 break;
         }
-        usleep(3000);
+        std::this_thread::sleep_for(std::chrono::microseconds(3000));
     }
 }
 
