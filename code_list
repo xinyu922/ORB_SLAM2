@@ -1,0 +1,6 @@
+../Examples/Stereo/stereo_euroc  ../Vocabulary/ORBvoc.txt ../Examples/Stereo/EuRoC.yal /home/dzsb078/Documents/20181017/20181017165621_Stereo_ZED/image_0_raw /home/dzsb078/Documents/20181017/20181017165621_Stereo_ZED/image_1_raw /home/dzsb078/Documents/20181017/20181017165621_Stereo_ZED/times.txt
+
+
+ ../Examples/Stereo/stereo_kitti  ../Vocabulary/ORBvoc.txt ../Examples/Stereo/EuRoC.yaml /home/dzsb078/Documents/20181017/20181017170231_Stereo_ZED 1
+
+

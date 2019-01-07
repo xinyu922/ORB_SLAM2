@@ -80,6 +80,7 @@ int main(int argc, char **argv)
 
     fsSettings["LEFT.D"] >> D_l;
     fsSettings["RIGHT.D"] >> D_r;
+    std::cout << "D_L: " << D_l << std::endl;
 
     int rows_l = fsSettings["LEFT.height"];
     int cols_l = fsSettings["LEFT.width"];
@@ -118,6 +119,7 @@ int main(int argc, char **argv)
         // Read left and right images from file
         imLeft = cv::imread(vstrImageLeft[ni],CV_LOAD_IMAGE_UNCHANGED);
         imRight = cv::imread(vstrImageRight[ni],CV_LOAD_IMAGE_UNCHANGED);
+        cv::imshow("raw", imLeft);
 
         if(imLeft.empty())
         {
@@ -135,6 +137,7 @@ int main(int argc, char **argv)
 
         cv::remap(imLeft,imLeftRect,M1l,M2l,cv::INTER_LINEAR);
         cv::remap(imRight,imRightRect,M1r,M2r,cv::INTER_LINEAR);
+        
 
         double tframe = vTimeStamp[ni];
 
@@ -166,7 +169,7 @@ int main(int argc, char **argv)
             T = tframe-vTimeStamp[ni-1];
 
         if(ttrack<T)
-            usleep((T-ttrack)*1e6);
+            std::this_thread::sleep_for(std::chrono::microseconds(static_cast<size_t>((T-ttrack)*1e6)));
     }
 
     // Stop all threads
@@ -197,6 +200,7 @@ void LoadImages(const string &strPathLeft, const string &strPathRight, const str
     vTimeStamps.reserve(5000);
     vstrImageLeft.reserve(5000);
     vstrImageRight.reserve(5000);
+    int i =0 ;
     while(!fTimes.eof())
     {
         string s;
@@ -205,11 +209,12 @@ void LoadImages(const string &strPathLeft, const string &strPathRight, const str
         {
             stringstream ss;
             ss << s;
-            vstrImageLeft.push_back(strPathLeft + "/" + ss.str() + ".png");
-            vstrImageRight.push_back(strPathRight + "/" + ss.str() + ".png");
+            vstrImageLeft.push_back(strPathLeft + "/" + std::to_string(i) + ".png");
+            vstrImageRight.push_back(strPathRight + "/" + std::to_string(i) + ".png");
             double t;
             ss >> t;
             vTimeStamps.push_back(t/1e9);
+            i++;
 
         }
     }
